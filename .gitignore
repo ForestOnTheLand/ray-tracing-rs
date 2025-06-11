@@ -1,0 +1,16 @@
+# Workspace
+.vscode/
+
+# Binary
+target/
+
+# Result
+out/
+output/
+image/
+
+# Other
+*.log
+*.out
+
+
