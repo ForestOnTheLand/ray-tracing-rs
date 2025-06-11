@@ -1,7 +1,7 @@
-use super::visible::{HitRecord, Visible};
-use crate::ray::Ray;
-
 use nalgebra as na;
+
+use super::{Geometry, GeometryHit};
+use crate::ray::Ray;
 
 /// A sphere in 3D space which is parameterized by its radius and center.
 pub struct Sphere {
@@ -16,8 +16,8 @@ impl Sphere {
     }
 }
 
-impl Visible for Sphere {
-    fn hit(&self, ray: &Ray, (min_t, max_t): (f64, f64)) -> Option<HitRecord> {
+impl Geometry for Sphere {
+    fn hit(&self, ray: &Ray, (min_t, max_t): (f64, f64)) -> Option<GeometryHit> {
         let oc = self.center - ray.origin;
         let a = ray.direction.norm_squared();
         let h = ray.direction.dot(&oc);
@@ -42,6 +42,6 @@ impl Visible for Sphere {
         if ray.direction.dot(&normal) > 0. {
             normal *= -1.;
         }
-        Some(HitRecord { point, normal, t })
+        Some(GeometryHit { point, normal, t })
     }
 }
