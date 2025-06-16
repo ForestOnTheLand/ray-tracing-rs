@@ -12,6 +12,13 @@ pub struct Ray {
 }
 
 impl Ray {
+    /// Create a new ray with the given origin and direction.
+    pub fn new(origin: na::Point3<f64>, direction: na::Vector3<f64>) -> Self {
+        Self { origin, direction }
+    }
+}
+
+impl Ray {
     /// The ray is parameterized by a parameter `t`, and this returns the point at position `t`.
     pub fn at(&self, t: f64) -> na::Point3<f64> {
         self.origin + t * self.direction

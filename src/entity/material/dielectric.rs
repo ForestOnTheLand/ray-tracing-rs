@@ -20,13 +20,17 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, hit: &GeometryHit) -> ScatteredRay {
-        let ri = if hit.exterior { 1.0 / self.ri } else { self.ri };
+        let ri = if hit.exterior { 1. / self.ri } else { self.ri };
 
-        let unit_direction = na::UnitVector3::new_normalize(ray.direction);
-        let direction = match refract(unit_direction, hit.normal, ri) {
+        let unit_in = na::UnitVector3::new_normalize(ray.direction);
+        let direction = match refract(unit_in, hit.normal, ri) {
             Some(refracted) => {
-                let cosine = -unit_direction.dot(&hit.normal).min(1.0);
-                if rand::random::<f64>() < reflectance(cosine, ri) {
+                // Use Schlick's approximation for reflectance.
+                let cosine = -unit_in.dot(&hit.normal).min(1.);
+                let r = ((1. - ri) / (1. + ri)).powi(2);
+                let reflectance = r + (1. - r) * (1. - cosine).powi(5);
+                // Reflect with a certain probability.
+                if rand::random::<f64>() < reflectance {
                     reflect(ray.direction, hit.normal)
                 } else {
                     refracted
@@ -36,18 +40,8 @@ impl Material for Dielectric {
         };
 
         ScatteredRay {
-            ray: Ray {
-                origin: hit.point,
-                direction,
-            },
+            ray: Ray::new(hit.point, direction),
             decay: self.albedo,
         }
     }
-}
-
-/// Calculate reflectance using Schlick's approximation.
-fn reflectance(cosine: f64, refraction_index: f64) -> f64 {
-    // Use Schlick's approximation for reflectance.
-    let r0 = ((1. - refraction_index) / (1. + refraction_index)).powi(2);
-    r0 + (1. - r0) * (1. - cosine).powi(5)
 }

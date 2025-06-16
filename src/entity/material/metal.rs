@@ -22,10 +22,10 @@ impl Metal {
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, hit: &GeometryHit) -> ScatteredRay {
         ScatteredRay {
-            ray: Ray {
-                origin: hit.point,
-                direction: reflect(ray.direction, hit.normal) + self.fuzz * *random_unit_vector(),
-            },
+            ray: Ray::new(
+                hit.point,
+                reflect(ray.direction, hit.normal) + self.fuzz * *random_unit_vector(),
+            ),
             decay: self.albedo,
         }
     }

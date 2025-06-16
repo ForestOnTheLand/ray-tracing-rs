@@ -40,13 +40,13 @@ fn refract(
     eta: f64,
 ) -> Option<na::Vector3<f64>> {
     let cos_theta = -direction.dot(&normal);
-    let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
-    if eta * sin_theta >= 1.0 {
+    let sin_theta = (1. - cos_theta * cos_theta).sqrt();
+    if eta * sin_theta >= 1. {
         return None;
     }
     let r_out_perp = eta * (*direction + cos_theta * *normal);
-    let r_out_parallel = -((1.0 - r_out_perp.norm_squared()).sqrt()) * *normal;
-    Some(r_out_perp + r_out_parallel)
+    let r_out_para = -((1. - r_out_perp.norm_squared()).sqrt()) * *normal;
+    Some(r_out_perp + r_out_para)
 }
 
 /// Compute the reflection of a ray given the direction and the normal.

@@ -43,8 +43,8 @@ impl Camera {
         let ratio = image_width as f64 / image_height as f64;
 
         // Currently, we fix those parameters. More flexibility will be provided.
-        let focal_length = 1.0;
-        let proj_height = 2.0;
+        let focal_length = 1.;
+        let proj_height = 2.;
         let proj_width = proj_height * ratio;
         let center = na::point![0., 0., 0.];
 
@@ -86,8 +86,8 @@ impl Camera {
             }
 
             // Background
-            let alpha = 0.5 * (ray.direction.normalize().y + 1.0);
-            (1. - alpha) * na::vector![1., 1., 1.] + alpha * na::vector![0.5, 0.7, 1.0]
+            let alpha = 0.5 * (ray.direction.normalize().y + 1.);
+            (1. - alpha) * na::vector![1., 1., 1.] + alpha * na::vector![0.5, 0.7, 1.]
         }
 
         render_ray_impl(ray, objects, 0)
@@ -116,7 +116,7 @@ impl Camera {
     }
 }
 
-/// Convert RGB in [`f64`] (from 0.0 to 1.0) into [`u8`] (from 0 to 255).
+/// Convert RGB in [`f64`] (from 0. to 1.) into [`u8`] (from 0 to 255).
 fn to_rgb(color: na::Vector3<f64>) -> image::Rgb<u8> {
     let [[r, g, b]] = color.data.0;
     image::Rgb([

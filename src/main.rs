@@ -21,11 +21,11 @@ fn main() {
     let world = vec![
         Entity::new(
             Box::new(Sphere::new(100., na::point![0., -100.5, -1.])),
-            Box::new(Lambertian::new(na::vector![0.8, 0.8, 0.0])),
+            Box::new(Lambertian::new(na::vector![0.8, 0.8, 0.])),
         ),
         Entity::new(
             Box::new(Sphere::new(0.5, na::point![1., 0., -1.])),
-            Box::new(Metal::new(na::vector![0.8, 0.6, 0.2], 1.0)),
+            Box::new(Metal::new(na::vector![0.8, 0.6, 0.2], 1.)),
         ),
         Entity::new(
             Box::new(Sphere::new(0.5, na::point![0., 0., -1.2])),
@@ -33,11 +33,11 @@ fn main() {
         ),
         Entity::new(
             Box::new(Sphere::new(0.5, na::point![-1., 0., -1.])),
-            Box::new(Dielectric::new(na::vector![1.0, 1.0, 1.0], 1.5)),
+            Box::new(Dielectric::new(na::vector![1., 1., 1.], 1.5)),
         ),
         Entity::new(
             Box::new(Sphere::new(0.4, na::point![-1., 0., -1.])),
-            Box::new(Dielectric::new(na::vector![1.0, 1.0, 1.0], 1. / 1.5)),
+            Box::new(Dielectric::new(na::vector![1., 1., 1.], 1. / 1.5)),
         ),
     ];
 
