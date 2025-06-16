@@ -1,14 +1,15 @@
-use image::Rgb;
-use nalgebra as na;
+//! Defines [`Camera`] that renders the world.
 
-use crate::entity::Entities;
+use crate::entity::{scattering, Entity};
 use crate::ray::Ray;
 use crate::utils::near_zero;
+use image::Rgb;
+use nalgebra as na;
 
 /// Defines the configuration of the world camera.
 #[allow(dead_code)]
 pub struct Camera {
-    /// Entityidth of output image, in pixels.
+    /// Width of output image, in pixels.
     image_width: u32,
     /// Height of output image, in pixels.
     image_height: u32,
@@ -27,8 +28,8 @@ pub struct Camera {
 }
 
 impl Camera {
-    /// Maximum number of reflections before the ray disappears.
-    const MAX_REFLECTION: i32 = 50;
+    /// Maximum number of scatters before the ray disappears.
+    const MAX_SCATTER: i32 = 50;
     /// Number of rays sampled per pixel.
     const SAMPLING: i32 = 10;
 }
@@ -68,24 +69,24 @@ impl Camera {
     }
 
     /// Render a ray which interacts with given objects.
-    fn render_ray(ray: Ray, objects: &Entities) -> na::Vector3<f64> {
-        fn render_ray_impl(ray: Ray, objects: &Entities, reflect: i32) -> na::Vector3<f64> {
-            // Quit if reflects too much times.
-            if reflect >= Camera::MAX_REFLECTION {
+    fn render_ray(ray: Ray, objects: &[Entity]) -> na::Vector3<f64> {
+        // Inner implementation.
+        fn render_ray_impl(ray: Ray, objects: &[Entity], scatter: i32) -> na::Vector3<f64> {
+            // Quit if scatters too much times.
+            if scatter >= Camera::MAX_SCATTER {
                 return na::vector![0., 0., 0.];
             }
 
             // Foreground objects.
-            if let Some(ray) = objects.forward_ray(&ray, (0.001, f64::INFINITY)) {
+            if let Some(ray) = scattering(objects, &ray, (0.001, f64::INFINITY)) {
                 if near_zero(ray.decay) {
                     return na::vector![0., 0., 0.];
                 }
-                return render_ray_impl(ray.ray, objects, reflect + 1).component_mul(&ray.decay);
+                return render_ray_impl(ray.ray, objects, scatter + 1).component_mul(&ray.decay);
             }
 
             // Background
-            let unit = ray.direction.normalize();
-            let alpha = 0.5 * (unit.y + 1.0);
+            let alpha = 0.5 * (ray.direction.normalize().y + 1.0);
             (1. - alpha) * na::vector![1., 1., 1.] + alpha * na::vector![0.5, 0.7, 1.0]
         }
 
@@ -93,7 +94,7 @@ impl Camera {
     }
 
     /// Render whole image with given objects.
-    pub fn render_world(&self, objects: &Entities) -> image::ImageBuffer<Rgb<u8>, Vec<u8>> {
+    pub fn render_world(&self, objects: &[Entity]) -> image::ImageBuffer<Rgb<u8>, Vec<u8>> {
         let mut image_buf = image::ImageBuffer::new(self.image_width, self.image_height);
         for (x, y, pixel) in image_buf.enumerate_pixels_mut() {
             let mut color = na::vector![0., 0., 0.];

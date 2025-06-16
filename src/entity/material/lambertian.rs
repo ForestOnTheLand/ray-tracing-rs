@@ -1,9 +1,8 @@
-use nalgebra as na;
+//! Implement the [`Lambertian`] material in 3D space, which models diffuse reflection.
 
-use super::{GeometryHit, Material};
-use crate::entity::material::ReflectedRay;
-use crate::ray::Ray;
+use super::{GeometryHit, Material, Ray, ScatteredRay};
 use crate::utils::{near_zero, random_unit_vector};
+use nalgebra as na;
 
 /// Diffuse reflection.
 pub struct Lambertian {
@@ -12,16 +11,17 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
+    /// Create a new [`Lambertian`] material with the given albedo.
     pub fn new(albedo: na::Vector3<f64>) -> Self {
         Self { albedo }
     }
 }
 
 impl Material for Lambertian {
-    fn reflect(&self, _ray: &Ray, hit: &GeometryHit) -> ReflectedRay {
+    fn scatter(&self, _ray: &Ray, hit: &GeometryHit) -> ScatteredRay {
         let scatter_direction = hit.normal + random_unit_vector();
 
-        ReflectedRay {
+        ScatteredRay {
             ray: Ray {
                 origin: hit.point,
                 direction: (if near_zero(scatter_direction) {

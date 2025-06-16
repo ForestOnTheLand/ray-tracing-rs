@@ -1,3 +1,5 @@
+//! Some utility functions for the project.
+
 use nalgebra as na;
 
 /// Generate a unit vector, randomly distributed on S(2).

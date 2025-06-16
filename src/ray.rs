@@ -1,6 +1,9 @@
+//! Defines a [`Ray`] in 3D space.
+
 use nalgebra as na;
 
 /// A ray in the 3D space, determined by the origin point and its direction.
+#[derive(Debug, Clone)]
 pub struct Ray {
     /// The source point of the ray.
     pub origin: na::Point3<f64>,

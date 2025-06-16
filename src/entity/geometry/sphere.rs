@@ -1,11 +1,14 @@
-use nalgebra as na;
+//! Implement a [`Sphere`] in 3D space.
 
 use super::{Geometry, GeometryHit};
 use crate::ray::Ray;
+use nalgebra as na;
 
 /// A sphere in 3D space which is parameterized by its radius and center.
 pub struct Sphere {
+    /// The radius of the sphere.
     pub radius: f64,
+    /// The center of the sphere in 3D space.
     pub center: na::Point3<f64>,
 }
 
@@ -38,10 +41,7 @@ impl Geometry for Sphere {
         }
 
         let point = ray.at(t);
-        let mut normal = (point - self.center).normalize();
-        if ray.direction.dot(&normal) > 0. {
-            normal *= -1.;
-        }
-        Some(GeometryHit { point, normal, t })
+        let normal = (point - self.center).normalize();
+        Some(GeometryHit::new(ray, normal, t))
     }
 }
