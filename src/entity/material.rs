@@ -1,13 +1,15 @@
 //! This module defines the [`Material`] trait, which should be implemented for
 //! a surface material.
 
+/// Implement [`Dielectric`] as a [`Material`].
+mod dielectric;
 /// Implement [`Lambertian`] as a [`Material`].
 mod lambertian;
 /// Implement [`Lambertian`] as a [`Material`].
 mod metal;
 
 /// Re-export the implemented material types.
-pub use self::{lambertian::Lambertian, metal::Metal};
+pub use self::{dielectric::Dielectric, lambertian::Lambertian, metal::Metal};
 
 use super::geometry::GeometryHit;
 use crate::ray::Ray;
@@ -27,4 +29,27 @@ pub struct ScatteredRay {
 pub trait Material {
     /// Compute the scattered ray.
     fn scatter(&self, ray: &Ray, hit: &GeometryHit) -> ScatteredRay;
+}
+
+/// Compute the refraction of a ray given the direction and the normal.
+///
+/// - `eta` is the ri of the incoming medium over the ri of the outgoing medium.
+fn refract(
+    direction: na::UnitVector3<f64>,
+    normal: na::UnitVector3<f64>,
+    eta: f64,
+) -> Option<na::Vector3<f64>> {
+    let cos_theta = -direction.dot(&normal);
+    let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+    if eta * sin_theta >= 1.0 {
+        return None;
+    }
+    let r_out_perp = eta * (*direction + cos_theta * *normal);
+    let r_out_parallel = -((1.0 - r_out_perp.norm_squared()).sqrt()) * *normal;
+    Some(r_out_perp + r_out_parallel)
+}
+
+/// Compute the reflection of a ray given the direction and the normal.
+fn reflect(direction: na::Vector3<f64>, normal: na::UnitVector3<f64>) -> na::Vector3<f64> {
+    direction - 2. * direction.dot(&normal) * normal.as_ref()
 }

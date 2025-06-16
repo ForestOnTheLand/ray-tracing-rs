@@ -41,7 +41,7 @@ impl Geometry for Sphere {
         }
 
         let point = ray.at(t);
-        let normal = (point - self.center).normalize();
+        let normal = na::UnitVector3::new_normalize(point - self.center);
         Some(GeometryHit::new(ray, normal, t))
     }
 }

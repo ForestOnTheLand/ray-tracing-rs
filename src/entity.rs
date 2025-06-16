@@ -9,7 +9,7 @@ mod material;
 /// Re-export the geometry and material traits and implementations.
 pub use self::{
     geometry::{Geometry, Sphere},
-    material::{Lambertian, Material, Metal},
+    material::{Dielectric, Lambertian, Material, Metal},
 };
 
 use crate::entity::material::ScatteredRay;

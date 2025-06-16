@@ -10,7 +10,7 @@ pub mod ray;
 /// Some useful tools.
 pub mod utils;
 
-use crate::entity::{Entity, Lambertian, Metal, Sphere};
+use crate::entity::{Dielectric, Entity, Lambertian, Metal, Sphere};
 use nalgebra as na;
 
 fn main() {
@@ -24,16 +24,20 @@ fn main() {
             Box::new(Lambertian::new(na::vector![0.8, 0.8, 0.0])),
         ),
         Entity::new(
+            Box::new(Sphere::new(0.5, na::point![1., 0., -1.])),
+            Box::new(Metal::new(na::vector![0.8, 0.6, 0.2], 1.0)),
+        ),
+        Entity::new(
             Box::new(Sphere::new(0.5, na::point![0., 0., -1.2])),
-            Box::new(Metal::new(na::vector![0.1, 0.2, 0.5])),
+            Box::new(Lambertian::new(na::vector![0.1, 0.2, 0.5])),
         ),
         Entity::new(
             Box::new(Sphere::new(0.5, na::point![-1., 0., -1.])),
-            Box::new(Metal::new(na::vector![0.8, 0.8, 0.8])),
+            Box::new(Dielectric::new(na::vector![1.0, 1.0, 1.0], 1.5)),
         ),
         Entity::new(
-            Box::new(Sphere::new(0.5, na::point![1., 0., -1.])),
-            Box::new(Metal::new(na::vector![0.8, 0.6, 0.2])),
+            Box::new(Sphere::new(0.4, na::point![-1., 0., -1.])),
+            Box::new(Dielectric::new(na::vector![1.0, 1.0, 1.0], 1. / 1.5)),
         ),
     ];
 

@@ -15,9 +15,9 @@ pub struct GeometryHit {
     /// The intersection point of the ray and the entity.
     pub point: na::Point3<f64>,
     /// The normal vector of the entity surface at the intersection point.
-    pub normal: na::Vector3<f64>,
+    /// The orientation of the normal vector depends on the incoming ray direction.
+    pub normal: na::UnitVector3<f64>,
     /// The orientation of the normal vector.
-    #[allow(dead_code)]
     pub exterior: bool,
     /// The parameter `t` of the intersection point on the ray.
     pub t: f64,
@@ -25,7 +25,7 @@ pub struct GeometryHit {
 
 impl GeometryHit {
     /// Create a new [`GeometryHit`] instance from ray, t and normal.
-    fn new(ray: &Ray, normal: na::Vector3<f64>, t: f64) -> Self {
+    fn new(ray: &Ray, normal: na::UnitVector3<f64>, t: f64) -> Self {
         let point = ray.at(t);
         let exterior = normal.dot(&ray.direction) < 0.;
         let normal = if exterior { normal } else { -normal };

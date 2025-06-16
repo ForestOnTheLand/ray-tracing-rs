@@ -31,7 +31,7 @@ impl Camera {
     /// Maximum number of scatters before the ray disappears.
     const MAX_SCATTER: i32 = 50;
     /// Number of rays sampled per pixel.
-    const SAMPLING: i32 = 10;
+    const SAMPLING: i32 = 100;
 }
 
 impl Camera {

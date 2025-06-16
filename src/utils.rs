@@ -3,14 +3,14 @@
 use nalgebra as na;
 
 /// Generate a unit vector, randomly distributed on S(2).
-pub fn random_unit_vector() -> na::Vector3<f64> {
+pub fn random_unit_vector() -> na::UnitVector3<f64> {
     loop {
         let vector = na::Vector3::from_distribution(
             &rand_distr::Normal::new(0.0, 1.0).unwrap(),
             &mut rand::thread_rng(),
         );
-        if !near_zero(vector) {
-            return vector.normalize();
+        if let Some(unit_vector) = na::UnitVector3::try_new(vector, 1e-8) {
+            return unit_vector;
         }
     }
 }
