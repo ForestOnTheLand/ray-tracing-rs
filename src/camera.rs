@@ -2,72 +2,174 @@
 
 use crate::entity::{scattering, Entity};
 use crate::ray::Ray;
-use crate::utils::near_zero;
+use crate::utils::{near_zero, random_in_unit_disk};
 use image::Rgb;
 use nalgebra as na;
 
+pub struct CameraBuilder {
+    // Note: Exactly 2 fields in `image_width`, `image_height`, and `ratio` should be set.
+    image_width: Option<u32>,
+    image_height: Option<u32>,
+    ratio: Option<f64>,
+    // The following fields have default values.
+    look_from: na::Point3<f64>,
+    look_at: na::Point3<f64>,
+    up: na::Vector3<f64>,
+    view_angle: f64,
+    focal_dist: f64,
+    defocus_angle: f64,
+}
+
+impl CameraBuilder {
+    /// Create a uninitialized [`CameraBuilder`].
+    pub fn new() -> Self {
+        Self {
+            image_width: None,
+            image_height: None,
+            ratio: None,
+            look_from: na::point![0., 0., 0.],
+            look_at: na::point![0., 0., -1.],
+            up: na::vector![0., 1., 0.],
+            view_angle: std::f64::consts::FRAC_PI_2,
+            focal_dist: 10.,
+            defocus_angle: 0.,
+        }
+    }
+}
+
+impl Default for CameraBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CameraBuilder {
+    /// Set width.
+    pub fn image_width(mut self, width: u32) -> Self {
+        self.image_width = Some(width);
+        self
+    }
+
+    /// Set height.
+    pub fn image_height(mut self, height: u32) -> Self {
+        self.image_height = Some(height);
+        self
+    }
+
+    /// Set ratio.
+    pub fn ratio(mut self, ratio: f64) -> Self {
+        self.ratio = Some(ratio);
+        self
+    }
+
+    /// Set focal distance.
+    pub fn focal_dist(mut self, dist: f64) -> Self {
+        self.focal_dist = dist;
+        self
+    }
+
+    /// Set defocus angle.
+    pub fn defocus_angle(mut self, angle: f64) -> Self {
+        self.defocus_angle = angle;
+        self
+    }
+
+    /// Set look from point.
+    pub fn look_from(mut self, point: na::Point3<f64>) -> Self {
+        self.look_from = point;
+        self
+    }
+
+    /// Set look at point.
+    pub fn look_at(mut self, point: na::Point3<f64>) -> Self {
+        self.look_at = point;
+        self
+    }
+
+    /// Set up vector.
+    pub fn up(mut self, up: na::Vector3<f64>) -> Self {
+        self.up = up;
+        self
+    }
+
+    /// Set view angle.
+    pub fn view_angle(mut self, angle: f64) -> Self {
+        self.view_angle = angle;
+        self
+    }
+
+    /// Build a [`Camera`] with the current configuration.
+    pub fn build(self) -> Camera {
+        // Get image size options.
+        let (image_width, image_height) = match (self.image_width, self.image_height, self.ratio) {
+            (Some(w), Some(h), _) => (w, h),
+            (None, Some(h), Some(r)) => ((h as f64 * r).round() as u32, h),
+            (Some(w), None, Some(r)) => (w, (w as f64 / r).round() as u32),
+            _ => {
+                panic!("CameraBuilder: at least two of `image_width`, `image_height`, and `ratio` should be set.")
+            }
+        };
+        let ratio = image_width as f64 / image_height as f64;
+
+        // Compute orthonormal axes of camera.
+        let w_axis = (self.look_from - self.look_at).normalize();
+        let u_axis = self.up.cross(&w_axis).normalize();
+        let v_axis = w_axis.cross(&u_axis).normalize();
+
+        // Compute focal length and viewport size according to the view angle and look from/to points.
+        let viewport_height = 2. * self.focal_dist * (self.view_angle / 2.).tan();
+        let viewport_width = viewport_height * ratio;
+
+        let viewport_u = viewport_width * u_axis;
+        let viewport_v = viewport_height * -v_axis;
+
+        let base_pixel_loc =
+            self.look_from - self.focal_dist * w_axis - viewport_u / 2. - viewport_v / 2.;
+
+        let defocus_radius = (self.defocus_angle / 2.).tan() * self.focal_dist;
+
+        Camera {
+            image_width,
+            image_height,
+            pixel_du: viewport_u / image_width as f64,
+            pixel_dv: viewport_v / image_height as f64,
+            center: self.look_from,
+            base_pixel_loc,
+            defocus_u: defocus_radius * u_axis,
+            defocus_v: defocus_radius * v_axis,
+        }
+    }
+}
+
 /// Defines the configuration of the world camera.
-#[allow(dead_code)]
+/// You should use [`CameraBuilder`] to build a [`Camera`].
 pub struct Camera {
     /// Width of output image, in pixels.
     image_width: u32,
     /// Height of output image, in pixels.
     image_height: u32,
-    /// The projected distance between two horizontally adjacent pixels.
+    /// The viewport distance between two horizontally adjacent pixels.
     /// Direction: Left to Right.
     pixel_du: na::Vector3<f64>,
-    /// The projected distance between two vertically adjacent pixels.
+    /// The viewport distance between two vertically adjacent pixels.
     /// Direction: Up to Down.
     pixel_dv: na::Vector3<f64>,
-    /// Ratio of width over height. `ratio = image_width / image_height = pixel_du / pixel_dv`.
-    ratio: f64,
-    /// Camera center.
+    /// Camera center. This is also known as the "look from" point.
     center: na::Point3<f64>,
-    /// The projected location of the center of pixel at (0, 0).
+    /// The viewport location of the left-top corner of the image.
     base_pixel_loc: na::Point3<f64>,
+    defocus_u: na::Vector3<f64>,
+    defocus_v: na::Vector3<f64>,
 }
 
 impl Camera {
     /// Maximum number of scatters before the ray disappears.
     const MAX_SCATTER: i32 = 50;
     /// Number of rays sampled per pixel.
-    const SAMPLING: i32 = 100;
+    const SAMPLING: i32 = 500;
 }
 
 impl Camera {
-    /// Create a camera by the width (see [`Camera::image_width`]) and
-    /// ratio (see [`Camera::ratio`]).
-    ///
-    /// **TODO**: Make it more flexible!
-    pub fn from_width_height(image_width: u32, image_height: u32) -> Self {
-        let ratio = image_width as f64 / image_height as f64;
-
-        // Currently, we fix those parameters. More flexibility will be provided.
-        let focal_length = 1.;
-        let proj_height = 2.;
-        let proj_width = proj_height * ratio;
-        let center = na::point![0., 0., 0.];
-
-        let proj_u = na::vector![proj_width, 0., 0.];
-        let proj_v = na::vector![0., -proj_height, 0.];
-
-        let pixel_du = proj_u / image_width as f64;
-        let pixel_dv = proj_v / image_height as f64;
-
-        // Currently, the negative z-axis of the camera points to the center of the image.
-        let base_pixel_loc = center - na::vector![0., 0., focal_length] - proj_u / 2. - proj_v / 2.;
-
-        Self {
-            image_width,
-            image_height,
-            pixel_du,
-            pixel_dv,
-            ratio,
-            center,
-            base_pixel_loc,
-        }
-    }
-
     /// Render a ray which interacts with given objects.
     fn render_ray(ray: Ray, objects: &[Entity]) -> na::Vector3<f64> {
         // Inner implementation.
@@ -93,22 +195,29 @@ impl Camera {
         render_ray_impl(ray, objects, 0)
     }
 
+    /// Sample a ray to render the given pixel.
+    /// The ray should start from the camera center and point to the pixel.
+    fn sample_ray(&self, x: u32, y: u32) -> Ray {
+        let (delta_x, delta_y) = random_in_unit_disk();
+        let source = self.center + delta_x * self.defocus_u + delta_y * self.defocus_v;
+        let target = self.base_pixel_loc
+            + (x as f64 + rand::random::<f64>()) * self.pixel_du
+            + (y as f64 + rand::random::<f64>()) * self.pixel_dv;
+        Ray {
+            origin: source,
+            direction: target - source,
+        }
+    }
+}
+
+impl Camera {
     /// Render whole image with given objects.
     pub fn render_world(&self, objects: &[Entity]) -> image::ImageBuffer<Rgb<u8>, Vec<u8>> {
         let mut image_buf = image::ImageBuffer::new(self.image_width, self.image_height);
         for (x, y, pixel) in image_buf.enumerate_pixels_mut() {
             let mut color = na::vector![0., 0., 0.];
             for _ in 0..Self::SAMPLING {
-                let delta_x = rand::random::<f64>() - 0.5;
-                let delta_y = rand::random::<f64>() - 0.5;
-                let ray = Ray {
-                    origin: self.center,
-                    direction: self.base_pixel_loc
-                        + (x as f64 + delta_x) * self.pixel_du
-                        + (y as f64 + delta_y) * self.pixel_dv
-                        - self.center,
-                };
-                color += Self::render_ray(ray, objects);
+                color += Self::render_ray(self.sample_ray(x, y), objects);
             }
             *pixel = to_rgb(color.unscale(Self::SAMPLING as f64));
         }

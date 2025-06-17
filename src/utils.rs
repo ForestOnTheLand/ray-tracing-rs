@@ -15,6 +15,17 @@ pub fn random_unit_vector() -> na::UnitVector3<f64> {
     }
 }
 
+/// Generate a random point on the unit disk.
+pub fn random_in_unit_disk() -> (f64, f64) {
+    loop {
+        let x = rand::random::<f64>() - 0.5;
+        let y = rand::random::<f64>() - 0.5;
+        if x * x + y * y < 1. {
+            return (x, y);
+        }
+    }
+}
+
 /// Judge whether the vector is near to zero.
 /// The threshold can be adjusted according to need.
 #[inline(always)]
