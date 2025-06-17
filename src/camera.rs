@@ -3,8 +3,9 @@
 use crate::entity::{scattering, Entity};
 use crate::ray::Ray;
 use crate::utils::{near_zero, random_in_unit_disk};
-use image::Rgb;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use nalgebra as na;
+use rayon::prelude::*;
 
 pub struct CameraBuilder {
     // Note: Exactly 2 fields in `image_width`, `image_height`, and `ratio` should be set.
@@ -167,6 +168,21 @@ impl Camera {
     const MAX_SCATTER: i32 = 50;
     /// Number of rays sampled per pixel.
     const SAMPLING: i32 = 500;
+    /// Style of the progress bar.
+    const PB_STYLE: &'static str =
+        "Rendering: {wide_bar:.green/yellow} {pos:>7}/{len:7} {elapsed_precise}/{duration_precise}";
+}
+
+impl Camera {
+    /// Obtain width of the output image.
+    pub fn width(&self) -> u32 {
+        self.image_width
+    }
+
+    /// Obtain height of the output image.
+    pub fn height(&self) -> u32 {
+        self.image_height
+    }
 }
 
 impl Camera {
@@ -212,25 +228,42 @@ impl Camera {
 
 impl Camera {
     /// Render whole image with given objects.
-    pub fn render_world(&self, objects: &[Entity]) -> image::ImageBuffer<Rgb<u8>, Vec<u8>> {
-        let mut image_buf = image::ImageBuffer::new(self.image_width, self.image_height);
-        for (x, y, pixel) in image_buf.enumerate_pixels_mut() {
-            let mut color = na::vector![0., 0., 0.];
-            for _ in 0..Self::SAMPLING {
-                color += Self::render_ray(self.sample_ray(x, y), objects);
-            }
-            *pixel = to_rgb(color.unscale(Self::SAMPLING as f64));
-        }
-        image_buf
-    }
-}
+    ///
+    /// This function only render one pass, and return a flattened vector of shape [H, W, 3],
+    /// where each element is in [0.0, 1.0) and each pixel is RGB format.
+    pub fn render_world_single(&self, objects: &[Entity], pb: ProgressBar) -> na::DVector<f64> {
+        let tid = rayon::current_thread_index().unwrap();
+        core_affinity::set_for_current(core_affinity::CoreId { id: tid });
 
-/// Convert RGB in [`f64`] (from 0. to 1.) into [`u8`] (from 0 to 255).
-fn to_rgb(color: na::Vector3<f64>) -> image::Rgb<u8> {
-    let [[r, g, b]] = color.data.0;
-    image::Rgb([
-        (r.clamp(0., 0.999) * 256.) as u8,
-        (g.clamp(0., 0.999) * 256.) as u8,
-        (b.clamp(0., 0.999) * 256.) as u8,
-    ])
+        let mut image_buf = Vec::with_capacity((self.image_width * self.image_height * 3) as usize);
+        for y in 0..self.image_height {
+            for x in 0..self.image_width {
+                let color = Self::render_ray(self.sample_ray(x, y), objects);
+                image_buf.extend_from_slice(color.as_slice());
+                pb.inc(1);
+            }
+        }
+        pb.finish();
+        na::DVector::from_vec(image_buf)
+    }
+
+    /// Render whole image with given objects.
+    pub fn render_world(&self, objects: &[Entity]) -> na::DVector<f64> {
+        let mpb = MultiProgress::new();
+        let style = ProgressStyle::with_template(Self::PB_STYLE).unwrap();
+
+        (0..Self::SAMPLING)
+            .into_par_iter()
+            .map(|i| {
+                let pb = ProgressBar::new((self.image_width * self.image_height) as u64)
+                    .with_style(style.clone())
+                    .with_prefix(i.to_string());
+                self.render_world_single(objects, mpb.add(pb))
+            })
+            .reduce(
+                || na::DVector::zeros((self.image_width * self.image_height * 3) as usize),
+                std::ops::Add::add,
+            )
+            .unscale(Self::SAMPLING as f64)
+    }
 }

@@ -26,7 +26,7 @@ pub struct ScatteredRay {
 }
 
 /// A trait that computes the scattered ray given the incident ray and the hit information.
-pub trait Material {
+pub trait Material: Send + Sync {
     /// Compute the scattered ray.
     fn scatter(&self, ray: &Ray, hit: &GeometryHit) -> ScatteredRay;
 }

@@ -5,7 +5,10 @@ edition = "2021"
 rust-version = "1.87.0"
 
 [dependencies]
+core_affinity = "0.8.3"
 image = "0.25.6"
+indicatif = "0.17.11"
 nalgebra = { version = "0.33.2", features = ["rand"] }
 rand = "0.8.5"
 rand_distr = "0.4.3"
+rayon = "1.10.0"

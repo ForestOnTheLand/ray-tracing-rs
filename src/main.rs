@@ -83,7 +83,8 @@ fn main() {
         }
     }
 
-    // Render and Output.
-    let image_buf = cam.render_world(&world);
-    image_buf.save("image/image.png").unwrap();
+    // Render and Show.
+    let buffer = cam.render_world(&world);
+    let image = utils::into_image(buffer.iter().cloned(), cam.width(), cam.height());
+    image.save("image/image.png").expect("Failed to save image");
 }

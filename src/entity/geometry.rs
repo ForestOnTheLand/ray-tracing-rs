@@ -39,7 +39,7 @@ impl GeometryHit {
 }
 
 /// A trait that computes the intersection of a ray and a geometry shape.
-pub trait Geometry {
+pub trait Geometry: Send + Sync {
     /// Compute the intersection of the ray (with a specified range) and the geometry.
     ///
     /// Returns `None` if the ray does not hit the geometry within the specified range.    

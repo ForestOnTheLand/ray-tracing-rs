@@ -32,3 +32,8 @@ pub fn random_in_unit_disk() -> (f64, f64) {
 pub fn near_zero(vector: na::Vector3<f64>) -> bool {
     vector.data.as_slice().iter().all(|&x| x < 1e-8)
 }
+
+pub fn into_image(buffer: impl Iterator<Item = f64>, width: u32, height: u32) -> image::RgbImage {
+    let pixels: Vec<u8> = buffer.map(|c| (c.clamp(0., 0.999) * 256.) as u8).collect();
+    image::RgbImage::from_raw(width, height, pixels).expect("Failed to create image from buffer")
+}
