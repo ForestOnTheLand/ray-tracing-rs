@@ -16,8 +16,10 @@ use rand::Rng;
 
 fn main() {
     // Set Camera.
+    // Note: You can change the sampling rate, image size to adjust the quality of rendering.
     let cam = camera::CameraBuilder::new()
-        .image_width(400)
+        .sampling(500)
+        .image_width(1200)
         .ratio(16. / 9.)
         .look_from(na::point![13., 2., 3.])
         .look_at(na::point![0., 0., 0.])
@@ -47,16 +49,12 @@ fn main() {
     ];
 
     let mut rng = rand::thread_rng();
+    // Randomly generate spheres.
+    // Note: You can turn down the number of entities to improve performance.
     for a in -11..11 {
         for b in -11..11 {
             // Choose material type.
             let choice = rng.gen::<f64>();
-            // Note: Here we randomly erase some balls to reduce the computational cost.
-            // Uncomment this to get a full scene.
-            if choice < 0.75 {
-                continue;
-            }
-            let choice = 4. * (choice - 0.75);
             let center = na::point![
                 a as f64 + 0.9 * rng.gen::<f64>(),
                 0.2,
