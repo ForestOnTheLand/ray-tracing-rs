@@ -17,7 +17,7 @@ use rand::Rng;
 fn main() {
     // Set Camera.
     let cam = camera::CameraBuilder::new()
-        .image_width(1200)
+        .image_width(400)
         .ratio(16. / 9.)
         .look_from(na::point![13., 2., 3.])
         .look_at(na::point![0., 0., 0.])
@@ -51,6 +51,12 @@ fn main() {
         for b in -11..11 {
             // Choose material type.
             let choice = rng.gen::<f64>();
+            // Note: Here we randomly erase some balls to reduce the computational cost.
+            // Uncomment this to get a full scene.
+            if choice < 0.75 {
+                continue;
+            }
+            let choice = 4. * (choice - 0.75);
             let center = na::point![
                 a as f64 + 0.9 * rng.gen::<f64>(),
                 0.2,
@@ -84,7 +90,12 @@ fn main() {
     }
 
     // Render and Show.
+    let start_time = std::time::Instant::now();
     let buffer = cam.render_world(&world);
+    let end_time = std::time::Instant::now();
+
+    println!("Render time: {:.2?}", end_time - start_time);
+
     let image = utils::into_image(buffer.iter().cloned(), cam.width(), cam.height());
     image.save("image/image.png").expect("Failed to save image");
 }

@@ -2,7 +2,7 @@
 
 use crate::entity::{scattering, Entity};
 use crate::ray::Ray;
-use crate::utils::{near_zero, random_in_unit_disk};
+use crate::utils::random_in_unit_disk;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use nalgebra as na;
 use rayon::prelude::*;
@@ -19,6 +19,8 @@ pub struct CameraBuilder {
     view_angle: f64,
     focal_dist: f64,
     defocus_angle: f64,
+    // Quality of rendering.
+    sampling: i32,
 }
 
 impl CameraBuilder {
@@ -34,6 +36,7 @@ impl CameraBuilder {
             view_angle: std::f64::consts::FRAC_PI_2,
             focal_dist: 10.,
             defocus_angle: 0.,
+            sampling: 200,
         }
     }
 }
@@ -99,6 +102,12 @@ impl CameraBuilder {
         self
     }
 
+    /// Set sampling quality.
+    pub fn sampling(mut self, sampling: i32) -> Self {
+        self.sampling = sampling;
+        self
+    }
+
     /// Build a [`Camera`] with the current configuration.
     pub fn build(self) -> Camera {
         // Get image size options.
@@ -138,6 +147,7 @@ impl CameraBuilder {
             base_pixel_loc,
             defocus_u: defocus_radius * u_axis,
             defocus_v: defocus_radius * v_axis,
+            sampling: self.sampling,
         }
     }
 }
@@ -159,18 +169,20 @@ pub struct Camera {
     center: na::Point3<f64>,
     /// The viewport location of the left-top corner of the image.
     base_pixel_loc: na::Point3<f64>,
+    /// The defocus direction in the horizontal direction.
     defocus_u: na::Vector3<f64>,
+    /// The defocus direction in the vertical direction.
     defocus_v: na::Vector3<f64>,
+    /// Quality of rendering.
+    sampling: i32,
 }
 
 impl Camera {
     /// Maximum number of scatters before the ray disappears.
     const MAX_SCATTER: i32 = 50;
-    /// Number of rays sampled per pixel.
-    const SAMPLING: i32 = 500;
     /// Style of the progress bar.
     const PB_STYLE: &'static str =
-        "Rendering: {wide_bar:.green/yellow} {pos:>7}/{len:7} {elapsed_precise}/{duration_precise}";
+        "Rendering {prefix:>4}: {wide_bar:.green/yellow} {pos:>7}/{len:7} {elapsed_precise}/{duration_precise}";
 }
 
 impl Camera {
@@ -188,27 +200,28 @@ impl Camera {
 impl Camera {
     /// Render a ray which interacts with given objects.
     fn render_ray(ray: Ray, objects: &[Entity]) -> na::Vector3<f64> {
-        // Inner implementation.
-        fn render_ray_impl(ray: Ray, objects: &[Entity], scatter: i32) -> na::Vector3<f64> {
-            // Quit if scatters too much times.
-            if scatter >= Camera::MAX_SCATTER {
-                return na::vector![0., 0., 0.];
-            }
-
-            // Foreground objects.
-            if let Some(ray) = scattering(objects, &ray, (0.001, f64::INFINITY)) {
-                if near_zero(ray.decay) {
+        // Record the current decay factor.
+        let mut color = na::vector![1., 1., 1.];
+        // Record the current ray.
+        let mut light = ray;
+        // Iterate at most `MAX_SCATTER` times.
+        for _ in 0..Self::MAX_SCATTER {
+            if let Some(ray) = scattering(objects, &light, (f64::EPSILON, f64::INFINITY)) {
+                // Foreground objects.
+                if ray.decay.iter().all(|&c| c < 1e-8) {
                     return na::vector![0., 0., 0.];
                 }
-                return render_ray_impl(ray.ray, objects, scatter + 1).component_mul(&ray.decay);
+                color.component_mul_assign(&ray.decay);
+                light = ray.ray;
+            } else {
+                // Background
+                let alpha = 0.5 * (light.direction.normalize().y + 1.);
+                let bg = (1. - alpha) * na::vector![1., 1., 1.] + alpha * na::vector![0.5, 0.7, 1.];
+                return color.component_mul(&bg);
             }
-
-            // Background
-            let alpha = 0.5 * (ray.direction.normalize().y + 1.);
-            (1. - alpha) * na::vector![1., 1., 1.] + alpha * na::vector![0.5, 0.7, 1.]
         }
-
-        render_ray_impl(ray, objects, 0)
+        // Return black if the ray scatters too many times.
+        na::vector![0., 0., 0.]
     }
 
     /// Sample a ray to render the given pixel.
@@ -252,7 +265,7 @@ impl Camera {
         let mpb = MultiProgress::new();
         let style = ProgressStyle::with_template(Self::PB_STYLE).unwrap();
 
-        (0..Self::SAMPLING)
+        (0..self.sampling)
             .into_par_iter()
             .map(|i| {
                 let pb = ProgressBar::new((self.image_width * self.image_height) as u64)
@@ -264,6 +277,6 @@ impl Camera {
                 || na::DVector::zeros((self.image_width * self.image_height * 3) as usize),
                 std::ops::Add::add,
             )
-            .unscale(Self::SAMPLING as f64)
+            .unscale(self.sampling as f64)
     }
 }
